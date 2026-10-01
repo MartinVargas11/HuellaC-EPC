@@ -191,6 +191,13 @@ h2 {
     box-shadow: 0 3px 10px rgba(46, 125, 50, 0.08);
 }
 .input-group { margin-bottom: 15px; }
+.contract-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.contract-fields .input-group { margin-bottom: 0; }
 label {
     display: block;
     margin-bottom: 6px;
@@ -315,16 +322,23 @@ button:hover { background: linear-gradient(135deg, var(--epc-blue-2) 0%, var(--e
 }
 .transporte-chart-container {
     position: relative;
-    width: 100%;
-    height: 120px;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 187px;
     margin-top: 4px;
+}
+.transporte-resultados-fila {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
 }
 #btn-nuevo-trayecto {
     margin-top: 8px;
 }
 #btn-imprimir-huella {
     width: auto;
-    margin-top: 12px;
+    flex: 0 0 auto;
+    margin: 0;
     padding: 10px 15px;
 }
 .distancia-valor {
@@ -452,6 +466,15 @@ button:hover { background: linear-gradient(135deg, var(--epc-blue-2) 0%, var(--e
         max-width: none;
         text-align: left;
     }
+    .transporte-resultados-fila {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+    }
+    #btn-imprimir-huella {
+        align-self: flex-end;
+        margin: 8px 0 0;
+    }
 }
 
 #reporte-impresion {
@@ -557,6 +580,24 @@ button:hover { background: linear-gradient(135deg, var(--epc-blue-2) 0%, var(--e
     .reporte-dato strong {
         color: #1e2f3f;
         font-size: 10pt;
+    }
+
+    .reporte-dato-huella-mensual {
+        background: #1d2d39 !important;
+        border: 4px solid #f7c848;
+        border-bottom-color: #ef4c3d;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+
+    .reporte-dato-huella-mensual span,
+    .reporte-dato-huella-mensual strong {
+        color: #ffffff;
+        font-size: 11pt;
+    }
+
+    .reporte-dato-huella-mensual span {
+        font-weight: 700;
     }
 
     .reporte-grafica {
