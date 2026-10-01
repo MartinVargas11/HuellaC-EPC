@@ -545,6 +545,7 @@
     let graficaTransporte = null;
     const registrosTrayecto = [];
     let identidadRegistro = null;
+    const textoDeclaracionLegal = 'Declaro bajo la gravedad de juramento que la información registrada es veraz y corresponde a datos reales, en cumplimiento de lo dispuesto en el artículo 83 de la Constitución Política de Colombia (principio de buena fe), la Ley 1437 de 2011 – Código de Procedimiento Administrativo y de lo Contencioso Administrativo (CPACA) y el artículo 442 del Código Penal (falsedad en documento).';
 
     function mostrarGraficaEnergia(consumos) {
         if (!window.Chart) {
@@ -858,6 +859,11 @@
         tabla.appendChild(cuerpo);
         reporte.appendChild(tabla);
 
+        const declaracion = document.createElement('p');
+        declaracion.className = 'reporte-declaracion';
+        declaracion.textContent = textoDeclaracionLegal;
+        reporte.appendChild(declaracion);
+
         const pie = document.createElement('footer');
         pie.className = 'reporte-pie';
         const logoContacto = document.createElement('img');
@@ -876,6 +882,7 @@
             return;
         }
 
+        alert(textoDeclaracionLegal);
         window.print();
     }
 
