@@ -132,7 +132,6 @@
 
             <div class="tab-panel active" data-panel="transporte">
                 <p>Resumen del consumo asociado a los trayectos, tipo de vehículo y distancia en cumplimiento de las funciones de EPC</p>
-                <button type="button" id="btn-imprimir-huella" class="secondary-btn" hidden>Imprimir Reporte Huella (PDF)</button>
                 <div id="resultado">
                     <div class="resultado-resumen" aria-live="polite">
                         <div class="resultado-total">
@@ -141,8 +140,11 @@
                         </div>
                         <p class="impacto-viaje">Impacto del último registro: <strong><span id="res-viaje" class="distancia-valor">0</span> kg CO₂</strong></p>
                     </div>
-                    <div class="transporte-chart-container">
-                        <canvas id="grafica-transporte" aria-label="Huella mensual acumulada por tipo de transporte" role="img"></canvas>
+                    <div class="transporte-resultados-fila">
+                        <div class="transporte-chart-container">
+                            <canvas id="grafica-transporte" aria-label="Gráfica de dona con la huella mensual por tipo de transporte y el total en el centro" role="img"></canvas>
+                        </div>
+                        <button type="button" id="btn-imprimir-huella" class="secondary-btn" hidden>Imprimir Reporte Huella (PDF)</button>
                     </div>
                 </div>
             </div>
@@ -668,7 +670,7 @@
 
         const transportes = Array.from(resumenPorTransporte.entries());
         const chartContainer = document.querySelector('.transporte-chart-container');
-        chartContainer.style.height = `${Math.max(120, transportes.length * 34 + 28)}px`;
+        chartContainer.style.height = '187px';
 
         if (!window.Chart) {
             alert('No se pudo cargar la gráfica de resultados. Verifica la conexión a internet.');
@@ -681,37 +683,56 @@
                 label: 'Huella mensual',
                 data: transportes.map(([, resumen]) => resumen.huellaMes),
                 backgroundColor: transportes.map(([, resumen]) => resumen.color),
-                borderRadius: 7,
-                barThickness: 22
+                borderColor: '#ffffff',
+                borderWidth: 3
             }]
         };
 
         if (!graficaTransporte) {
             graficaTransporte = new Chart(document.getElementById('grafica-transporte'), {
-                type: 'bar',
+                type: 'doughnut',
                 data: datos,
+                plugins: [{
+                    id: 'totalHuellaCentro',
+                    afterDraw(chart) {
+                        const valores = chart.data.datasets[0].data;
+                        const total = valores.reduce((suma, valor) => suma + valor, 0);
+                        const area = chart.chartArea;
+                        if (!area) return;
+
+                        const contexto = chart.ctx;
+                        contexto.save();
+                        const centroX = (area.left + area.right) / 2;
+                        const centroY = (area.top + area.bottom) / 2;
+                        contexto.textAlign = 'center';
+                        contexto.textBaseline = 'middle';
+                        contexto.fillStyle = '#1d2d39';
+                        contexto.font = '700 15px Montserrat, sans-serif';
+                        contexto.fillText(total.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), centroX, centroY - 7);
+                        contexto.font = '10px Montserrat, sans-serif';
+                        contexto.fillText('kg CO₂/mes', centroX, centroY + 11);
+                        contexto.restore();
+                    }
+                }],
                 options: {
-                    indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    cutout: '65%',
                     plugins: {
-                        legend: { display: false },
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: { color: '#1d2d39', boxWidth: 12, padding: 10 }
+                        },
                         tooltip: {
                             callbacks: {
-                                label: contexto => `${contexto.parsed.x.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg CO₂/mes`
+                                label: contexto => {
+                                    const valor = contexto.parsed;
+                                    const total = contexto.dataset.data.reduce((suma, huella) => suma + huella, 0);
+                                    const porcentaje = total ? (valor / total * 100).toLocaleString('es-CO', { maximumFractionDigits: 1 }) : '0';
+                                    return `${valor.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg CO₂/mes (${porcentaje}%)`;
+                                }
                             }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            title: { display: true, text: 'kg CO₂/mes', color: '#5d6d7a' },
-                            ticks: { color: '#5d6d7a' },
-                            grid: { color: 'rgba(29, 45, 57, 0.08)' }
-                        },
-                        y: {
-                            ticks: { color: '#1d2d39' },
-                            grid: { display: false }
                         }
                     }
                 }
@@ -784,6 +805,7 @@
         const impactoTotalTrayectos = registrosTrayecto.reduce((total, registro) => total + registro.huellaViaje, 0);
         agregarCampoReporte(resumen, 'Distancia total recorrida', `${distanciaTotal.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`);
         agregarCampoReporte(resumen, 'Huella mensual acumulada', `${huellaMensualTotal.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg CO₂/mes`);
+        resumen.lastElementChild.classList.add('reporte-dato-huella-mensual');
         agregarCampoReporte(resumen, 'Impacto de todos los trayectos registrados', `${impactoTotalTrayectos.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg CO₂`);
         reporte.appendChild(resumen);
 
@@ -794,7 +816,7 @@
             const grafica = document.createElement('img');
             grafica.className = 'reporte-grafica';
             grafica.src = graficaTransporte.toBase64Image();
-            grafica.alt = 'Gráfica de huella mensual acumulada por tipo de transporte';
+            grafica.alt = 'Gráfica de dona con la distribución de huella mensual por tipo de transporte y el total en el centro';
             reporte.appendChild(grafica);
         }
 
