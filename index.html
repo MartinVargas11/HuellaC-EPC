@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Huella de Carbono EPC</title>
+    <link rel="icon" type="image/png" href="img/EPC-LOG-02.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+<div id="app-shell">
+    <div id="sidebar">
+        <div class="brand-header">
+            <img src="img/EPC-LOG-11.png" alt="Logo-EPC" class="logo-img">
+        </div>
+
+        <h2>Huella de Carbono</h2>
+
+        <div class="input-group">
+            <label for="nombre">Nombre</label>
+            <input type="text" id="nombre" name="nombre" required placeholder="Ingrese su nombre">
+        </div>
+
+        <div class="input-group">
+            <label for="numero-contrato">Número de contrato</label>
+            <input type="text" id="numero-contrato" name="numero-contrato" required inputmode="numeric" pattern="[0-9]{1,5}" maxlength="5" placeholder="Ingrese el número de contrato">
+        </div>
+
+        <div class="input-group">
+            <label for="mes">Mes</label>
+            <select id="mes" name="mes" required>
+                <option value="" selected disabled>Seleccione un mes</option>
+                <option value="enero">Enero</option>
+                <option value="febrero">Febrero</option>
+                <option value="marzo">Marzo</option>
+                <option value="abril">Abril</option>
+                <option value="mayo">Mayo</option>
+                <option value="junio">Junio</option>
+                <option value="julio">Julio</option>
+                <option value="agosto">Agosto</option>
+                <option value="septiembre">Septiembre</option>
+                <option value="octubre">Octubre</option>
+                <option value="noviembre">Noviembre</option>
+                <option value="diciembre">Diciembre</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Punto de inicio</label>
+            <input type="text" id="inicio-direccion" list="sugerencias-inicio" placeholder="Ej. Gobernación de Cundinamarca, Bogotá, Colombia">
+            <datalist id="sugerencias-inicio"></datalist>
+            <div class="button-row">
+                <button type="button" class="secondary-btn" id="btn-seleccionar-inicio">Escoga punto de inicio</button>
+                <button type="button" class="secondary-btn" id="btn-empresa-inicio">Empresas Públicas de Cundinamarca</button>
+            </div>
+            <button type="button" class="secondary-btn" id="btn-ubicacion-inicio">Ubicación actual</button>
+        </div>
+
+        <div class="input-group">
+            <label>Punto de Llegada</label>
+            <input type="text" id="final-direccion" list="sugerencias-final" placeholder="Ej. Topaipi, Cundinamarca, Colombia">
+            <datalist id="sugerencias-final"></datalist>
+            <div class="button-row">
+                <button type="button" class="secondary-btn" id="btn-seleccionar-final">Escoga punto de llegada</button>
+                <button type="button" class="secondary-btn" id="btn-empresa-final">Empresas Públicas de Cundinamarca</button>
+            </div>
+            <button type="button" class="secondary-btn" id="btn-ubicacion-final">Ubicación actual</button>
+        </div>
+
+        <div class="input-group">
+            <label class="checkbox-field" for="ida-vuelta">
+                <input type="checkbox" id="ida-vuelta" name="ida-vuelta">
+                <span>El trayecto es de ida y vuelta</span>
+            </label>
+        </div>
+
+        <div class="input-group">
+            <label for="numero-dias-trayecto">Número de días del trayecto</label>
+            <input type="number" id="numero-dias-trayecto" name="numero-dias-trayecto" min="1" step="1" required inputmode="numeric" placeholder="Ingrese el número de días">
+        </div>
+
+        <div class="input-group">
+            <label>Distancia del Trayecto</label>
+            <input type="text" id="distancia" readonly placeholder="Escoja el punto">
+        </div>
+
+        <div class="input-group">
+            <label for="categoria-transporte">Tipo de Transporte</label>
+            <select id="categoria-transporte">
+                <option value="" selected disabled>Seleccione una categoría</option>
+                <option value="publico">Transporte Público</option>
+                <option value="propio">Transporte Propio</option>
+                <option value="institucional">Transporte Institucional</option>
+            </select>
+        </div>
+
+        <div class="input-group" id="opcion-transporte-group" hidden>
+            <label for="transporte">Medio de Transporte</label>
+            <select id="transporte" disabled>
+                <option value="" selected disabled>Seleccione un medio de transporte</option>
+            </select>
+        </div>
+
+        <button type="button" id="btn-calcular-huella" onclick="calcularHuella()">Calcular Huella</button>
+        <button type="button" class="secondary-btn" id="btn-nuevo-trayecto" hidden>Registrar otro trayecto</button>
+    </div>
+
+    <div id="content-area">
+        <div id="map"></div>
+
+        <div id="bottom-tabs">
+            <div class="tab-header">
+                <button class="tab-button active" data-tab="transporte" type="button">Transporte</button>
+                <button class="tab-button" data-tab="energia" type="button">Energía Eléctrica</button>
+                <button class="tab-button" data-tab="agua" type="button">Agua potable</button>
+            </div>
+
+            <div class="tab-panel active" data-panel="transporte">
+                <p>Resumen del consumo asociado a los trayectos, tipo de vehículo y distancia en cumplimiento de las funciones de EPC</p>
+                <button type="button" id="btn-imprimir-huella" class="secondary-btn" hidden>Imprimir Reporte Huella (PDF)</button>
+                <div id="resultado">
+                    <div class="resultado-resumen" aria-live="polite">
+                        <div class="resultado-total">
+                            <span>Huella mensual</span>
+                            <strong><span id="res-mes">0,00</span> kg CO₂/mes</strong>
+                        </div>
+                        <p class="impacto-viaje">Impacto del último registro: <strong><span id="res-viaje" class="distancia-valor">0</span> kg CO₂</strong></p>
+                    </div>
+                    <div class="transporte-chart-container">
+                        <canvas id="grafica-transporte" aria-label="Huella mensual acumulada por tipo de transporte" role="img"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" data-panel="energia">
+                <div class="energia-chart-controls">
+                    <span id="energia-estado" role="status" aria-live="polite">Consumo mensual en 2026 de energía eléctrica (kWh).</span>
+                </div>
+                <div class="energia-chart-container">
+                    <canvas id="grafica-energia" aria-label="Gráfica de líneas de consumo mensual de energía en kWh durante 2026" role="img"></canvas>
+                </div>
+            </div>
+
+            <div class="tab-panel" data-panel="agua">
+                <p>Consumo mensual por piso en 2026, expresado en metros cúbicos (m³).</p>
+                <div class="energia-chart-container">
+                    <canvas id="grafica-agua" aria-label="Gráfica de líneas de consumo mensual de agua en metros cúbicos durante 2026 para los pisos 7 y 11" role="img"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section id="reporte-impresion" aria-label="Informe de huella de carbono"></section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+<script>
+    const map = L.map('map', {
+        zoomControl: false,
+        attributionControl: true,
+        preferCanvas: true
+    }).setView([4.6097, -74.0817], 12);
+
+    L.control.zoom({
+        zoomInText: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="6"></circle><path d="M10 7v6M7 10h6M14.5 14.5 20 20"></path></svg>',
+        zoomOutText: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="6"></circle><path d="M7 10h6M14.5 14.5 20 20"></path></svg>',
+        zoomInTitle: 'Acercar mapa',
+        zoomOutTitle: 'Alejar mapa'
+    }).addTo(map);
+
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    const startIcon = L.divIcon({
+        className: 'custom-pin start-pin',
+        html: '<span class="pin-dot"></span>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        popupAnchor: [0, -10]
+    });
+
+    const endIcon = L.divIcon({
+        className: 'custom-pin end-pin',
+        html: '<span class="pin-dot"></span>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        popupAnchor: [0, -10]
+    });
+
+    const controlRuta = L.Routing.control({
+        waypoints: [],
+        lineOptions: {
+            styles: [{
+                color: '#2dbf6a',
+                weight: 7,
+                opacity: 0.9,
+                dashArray: '0',
+                lineCap: 'round'
+            }]
+        },
+        addWaypoints: false,
+        draggableWaypoints: true,
+        show: false,
+        createMarker: function(i, waypoint, n) {
+            const icon = i === 0 ? startIcon : endIcon;
+            return L.marker(waypoint.latLng, {
+                draggable: true,
+                icon: icon
+            });
+        }
+    }).addTo(map);
+
+    let inicioSeleccionado = null;
+    let finalSeleccionado = null;
+    let modoSeleccion = null;
+    const marcadorInicio = L.marker([0, 0], { icon: startIcon, draggable: true });
+    const marcadorFinal = L.marker([0, 0], { icon: endIcon, draggable: true });
+
+    const styleMarker = document.createElement('style');
+    styleMarker.innerHTML = `
+        .custom-pin {
+            background: transparent;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .pin-dot {
+            display: block;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.96);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .start-pin .pin-dot {
+            background: #2e7d32;
+        }
+        .end-pin .pin-dot {
+            background: #d97706;
+        }
+        .start-pin::after, .end-pin::after {
+            content: '';
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            opacity: 0.2;
+            z-index: -1;
+        }
+        .start-pin::after {
+            background: #2e7d32;
+        }
+        .end-pin::after {
+            background: #d97706;
+        }
+    `;
+    document.head.appendChild(styleMarker);
+
+    function limpiarRuta() {
+        controlRuta.setWaypoints([]);
+        document.getElementById('distancia').value = '';
+    }
+
+    function actualizarRuta() {
+        const waypoints = [];
+
+        if (inicioSeleccionado) waypoints.push(inicioSeleccionado);
+        if (finalSeleccionado) waypoints.push(finalSeleccionado);
+
+        controlRuta.setWaypoints(waypoints);
+
+        if (waypoints.length === 1) {
+            document.getElementById('distancia').value = 'Selecciona el destino...';
+        } else if (waypoints.length === 0) {
+            document.getElementById('distancia').value = '';
+        }
+    }
+
+    function geocodificarLatLng(latlng, campo, textoPersonalizado = null) {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latlng.lat}&lon=${latlng.lng}&accept-language=es`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const texto = textoPersonalizado || data.display_name || `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+                document.getElementById(campo).value = texto;
+            })
+            .catch(() => {
+                const texto = textoPersonalizado || `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+                document.getElementById(campo).value = texto;
+            });
+    }
+
+    function activarSeleccion(campo) {
+        const input = document.getElementById(campo);
+        if (input) {
+            input.focus();
+            input.select();
+        }
+
+        if (campo === 'inicio-direccion') {
+            modoSeleccion = 'inicio';
+        } else {
+            modoSeleccion = 'final';
+        }
+
+        map.getContainer().classList.add('map-point-selection');
+    }
+
+    function establecerUbicacionEmpresa(campo) {
+        const latlng = L.latLng(4.638943294790065, -74.0983224451279);
+        const nombreEmpresa = 'Empresas Públicas de Cundinamarca';
+
+        if (campo === 'inicio-direccion') {
+            inicioSeleccionado = latlng;
+            marcadorInicio.setLatLng(latlng).addTo(map);
+            geocodificarLatLng(latlng, campo, nombreEmpresa);
+        } else {
+            finalSeleccionado = latlng;
+            marcadorFinal.setLatLng(latlng).addTo(map);
+            geocodificarLatLng(latlng, campo, nombreEmpresa);
+        }
+
+        map.setView(latlng, 15);
+        actualizarRuta();
+    };
+
+    function establecerUbicacionActual(campo) {
+        if (!navigator.geolocation) {
+            alert('Este navegador no permite obtener la ubicación actual.');
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const latlng = L.latLng(position.coords.latitude, position.coords.longitude);
+
+                if (campo === 'inicio-direccion') {
+                    inicioSeleccionado = latlng;
+                    marcadorInicio.setLatLng(latlng).addTo(map);
+                } else {
+                    finalSeleccionado = latlng;
+                    marcadorFinal.setLatLng(latlng).addTo(map);
+                }
+
+                modoSeleccion = null;
+                map.getContainer().classList.remove('map-point-selection');
+                geocodificarLatLng(latlng, campo);
+                map.setView(latlng, 16);
+                actualizarRuta();
+            },
+            function(error) {
+                const mensajes = {
+                    1: 'No se concedió permiso para acceder a la ubicación.',
+                    2: 'No fue posible determinar la ubicación actual.',
+                    3: 'Se agotó el tiempo para obtener la ubicación.'
+                };
+                alert(mensajes[error.code] || 'No se pudo obtener la ubicación actual.');
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+        );
+    }
+
+    document.getElementById('inicio-direccion').addEventListener('input', function() {
+        obtenerSugerencias('inicio-direccion', this.value);
+    });
+
+    document.getElementById('final-direccion').addEventListener('input', function() {
+        obtenerSugerencias('final-direccion', this.value);
+    });
+
+    document.getElementById('numero-contrato').addEventListener('input', function() {
+        this.value = this.value.replace(/\D/g, '').slice(0, 5);
+    });
+
+    document.getElementById('numero-dias-trayecto').addEventListener('input', function() {
+        if (this.value < 0) this.value = '';
+    });
+
+    //Factores de emisión en kg CO₂ por km recorrido
+    const opcionesTransporte = { //Valores referencia del FECOC y Hugo Thomas. Transporte urbano y emisiones de gases de efecto invernadero en América Latina. Una
+                                //modelización de las emisiones de la movilidad urbana aplicada a Bogotá y Lima. Revista Ensayo, 2024, 4,
+                                //⟨10.18800/ensayo.202404.008⟩. ⟨hal-04524189⟩
+        publico: [
+            { nombre: 'Bus Urbano - SITP', factor: '0.069' },
+            { nombre: 'Transmilenio', factor: '0.005' },
+            { nombre: 'Taxi - Plataformas', factor: '0.163' }
+        ],
+        propio: [
+            { nombre: 'Carro Combustible', factor: '0.152' },
+            { nombre: 'Moto', factor: '0.076' },
+            { nombre: 'Bici', factor: '0' },
+            { nombre: 'Patineta Eléctrica', factor: '0.002' },
+            { nombre: 'A pie', factor: '0' }
+        ],
+        institucional: [
+            { nombre: 'Camioneta EPC', factor: '0.152' },
+            { nombre: 'Carrotanque EPC', factor: '0.571' },
+            { nombre: 'Carro Succión Presión EPC', factor: '0.773' }
+        ]
+    };
+
+    document.getElementById('categoria-transporte').addEventListener('change', function() {
+        const selectorMedio = document.getElementById('transporte');
+        const grupoMedio = document.getElementById('opcion-transporte-group');
+        const opciones = opcionesTransporte[this.value] || [];
+
+        selectorMedio.replaceChildren(new Option('Seleccione un medio de transporte', '', true, true));
+        opciones.forEach(opcion => {
+            selectorMedio.add(new Option(opcion.nombre, opcion.factor));
+        });
+        selectorMedio.disabled = opciones.length === 0;
+        grupoMedio.hidden = opciones.length === 0;
+    });
+
+    document.getElementById('inicio-direccion').addEventListener('change', function() {
+        if (this.value.trim()) {
+            buscarDireccion('inicio-direccion', this.value);
+        }
+    });
+
+    document.getElementById('final-direccion').addEventListener('change', function() {
+        if (this.value.trim()) {
+            buscarDireccion('final-direccion', this.value);
+        }
+    });
+
+    document.getElementById('btn-seleccionar-inicio').addEventListener('click', function() {
+        activarSeleccion('inicio-direccion');
+    });
+
+    document.getElementById('btn-seleccionar-final').addEventListener('click', function() {
+        activarSeleccion('final-direccion');
+    });
+
+    document.getElementById('btn-empresa-inicio').addEventListener('click', function() {
+        activarSeleccion('inicio-direccion');
+        establecerUbicacionEmpresa('inicio-direccion');
+    });
+
+    document.getElementById('btn-empresa-final').addEventListener('click', function() {
+        activarSeleccion('final-direccion');
+        establecerUbicacionEmpresa('final-direccion');
+    });
+
+    document.getElementById('btn-ubicacion-inicio').addEventListener('click', function() {
+        establecerUbicacionActual('inicio-direccion');
+    });
+
+    document.getElementById('btn-ubicacion-final').addEventListener('click', function() {
+        establecerUbicacionActual('final-direccion');
+    });
+
+    map.on('click', function(e) {
+        if (modoSeleccion === 'inicio') {
+            inicioSeleccionado = e.latlng;
+            marcadorInicio.setLatLng(e.latlng).addTo(map);
+            geocodificarLatLng(e.latlng, 'inicio-direccion');
+        } else if (modoSeleccion === 'final') {
+            finalSeleccionado = e.latlng;
+            marcadorFinal.setLatLng(e.latlng).addTo(map);
+            geocodificarLatLng(e.latlng, 'final-direccion');
+        }
+
+        if (modoSeleccion) {
+            actualizarRuta();
+        }
+    });
+
+    controlRuta.on('routesfound', function(e) {
+        const rutas = e.routes;
+        const resumen = rutas[0].summary;
+        const distanciaKM = (resumen.totalDistance / 1000).toFixed(2);
+        document.getElementById('distancia').value = distanciaKM + ' km';
+    });
+
+    document.getElementById('inicio-direccion').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            buscarDireccion('inicio-direccion', this.value);
+        }
+    });
+
+    document.getElementById('final-direccion').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            buscarDireccion('final-direccion', this.value);
+        }
+    });
+
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', () => {
+            const tab = button.dataset.tab;
+
+            document.querySelectorAll('.tab-button').forEach(item => item.classList.toggle('active', item === button));
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.toggle('active', panel.dataset.panel === tab));
+            if (tab === 'energia' && graficaEnergia) {
+                graficaEnergia.resize();
+            }
+            if (tab === 'agua' && graficaAgua) {
+                graficaAgua.resize();
+            }
+            if (tab === 'transporte' && graficaTransporte) {
+                graficaTransporte.resize();
+            }
+        });
+    });
+
+    const mesesEnergia = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const consumosEnergia2026 = [1760, 2240, 2200, 2360, 2440, 2040, 2840, 0, 0, 0, 0, 0];
+    let graficaEnergia = null;
+    const consumosAguaPiso7 = [4, 5, 5, 5, 8, 5, 4, 4, 4, 0, 0, 0];
+    const consumosAguaPiso11 = [58, 48, 24, 42, 76, 41, 77, 49, 34, 0, 0, 0];
+    let graficaAgua = null;
+    let graficaTransporte = null;
+    const registrosTrayecto = [];
+    let identidadRegistro = null;
+
+    function mostrarGraficaEnergia(consumos) {
+        if (!window.Chart) {
+            document.getElementById('energia-estado').textContent = 'No se pudo cargar el componente de gráficas. Verifica la conexión a internet.';
+            return;
+        }
+
+        if (graficaEnergia) graficaEnergia.destroy();
+        graficaEnergia = new Chart(document.getElementById('grafica-energia'), {
+            type: 'line',
+            data: {
+                labels: mesesEnergia,
+                datasets: [{
+                    label: 'Consumo (kWh)',
+                    data: consumos,
+                    borderColor: '#c89b2c',
+                    backgroundColor: 'rgba(200, 155, 44, 0.22)',
+                    pointBackgroundColor: '#c89b2c',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: true,
+                    spanGaps: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: contexto => `${contexto.parsed.y.toLocaleString('es-CO')} kWh` } }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#5d6d7a' } },
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Consumo (kWh)', color: '#5d6d7a' },
+                        ticks: { color: '#5d6d7a' },
+                        grid: { color: 'rgba(29, 45, 57, 0.08)' }
+                    }
+                }
+            }
+        });
+    }
+
+    mostrarGraficaEnergia(consumosEnergia2026);
+
+    function mostrarGraficaAgua() {
+        if (!window.Chart) return;
+
+        graficaAgua = new Chart(document.getElementById('grafica-agua'), {
+            type: 'line',
+            data: {
+                labels: mesesEnergia,
+                datasets: [
+                    {
+                        label: 'Piso 7',
+                        data: consumosAguaPiso7,
+                        borderColor: '#2A407E',
+                        backgroundColor: 'rgba(44, 84, 199, 0.16)',
+                        pointBackgroundColor: '#2A407E',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        borderWidth: 3,
+                        tension: 0.3,
+                        fill: true,
+                        spanGaps: false
+                    },
+                    {
+                        label: 'Piso 11',
+                        data: consumosAguaPiso11,
+                        borderColor: '#1d7ab8',
+                        backgroundColor: 'rgba(29, 122, 184, 0.14)',
+                        pointBackgroundColor: '#1d7ab8',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        borderWidth: 3,
+                        tension: 0.3,
+                        fill: true,
+                        spanGaps: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: { callbacks: { label: contexto => `${contexto.dataset.label}: ${contexto.parsed.y.toLocaleString('es-CO')} m³` } }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#5d6d7a' } },
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Consumo (m³)', color: '#5d6d7a' },
+                        ticks: { color: '#5d6d7a' },
+                        grid: { color: 'rgba(29, 45, 57, 0.08)' }
+                    }
+                }
+            }
+        });
+    }
+
+    mostrarGraficaAgua();
+
+    function actualizarGraficaTransporte() {
+        const resumenPorTransporte = new Map();
+        registrosTrayecto.forEach(registro => {
+            const resumen = resumenPorTransporte.get(registro.transporte) || {
+                huellaMes: 0,
+                color: registro.color
+            };
+            resumen.huellaMes += registro.huellaMes;
+            resumenPorTransporte.set(registro.transporte, resumen);
+        });
+
+        const transportes = Array.from(resumenPorTransporte.entries());
+        const chartContainer = document.querySelector('.transporte-chart-container');
+        chartContainer.style.height = `${Math.max(120, transportes.length * 34 + 28)}px`;
+
+        if (!window.Chart) {
+            alert('No se pudo cargar la gráfica de resultados. Verifica la conexión a internet.');
+            return;
+        }
+
+        const datos = {
+            labels: transportes.map(([transporte]) => transporte),
+            datasets: [{
+                label: 'Huella mensual',
+                data: transportes.map(([, resumen]) => resumen.huellaMes),
+                backgroundColor: transportes.map(([, resumen]) => resumen.color),
+                borderRadius: 7,
+                barThickness: 22
+            }]
+        };
+
+        if (!graficaTransporte) {
+            graficaTransporte = new Chart(document.getElementById('grafica-transporte'), {
+                type: 'bar',
+                data: datos,
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: contexto => `${contexto.parsed.x.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg CO₂/mes`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'kg CO₂/mes', color: '#5d6d7a' },
+                            ticks: { color: '#5d6d7a' },
+                            grid: { color: 'rgba(29, 45, 57, 0.08)' }
+                        },
+                        y: {
+                            ticks: { color: '#1d2d39' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+            return;
+        }
+
+        graficaTransporte.data = datos;
+        graficaTransporte.update();
+    }
+
+    function prepararOtroTrayecto() {
+        inicioSeleccionado = null;
+        finalSeleccionado = null;
+        modoSeleccion = null;
+        map.getContainer().classList.remove('map-point-selection');
+        document.getElementById('inicio-direccion').value = '';
+        document.getElementById('final-direccion').value = '';
+        document.getElementById('distancia').value = '';
+        controlRuta.setWaypoints([]);
+        if (map.hasLayer(marcadorInicio)) map.removeLayer(marcadorInicio);
+        if (map.hasLayer(marcadorFinal)) map.removeLayer(marcadorFinal);
+        document.getElementById('btn-nuevo-trayecto').hidden = true;
+        document.getElementById('btn-calcular-huella').hidden = false;
+        document.getElementById('inicio-direccion').focus();
+    }
+
+    document.getElementById('btn-nuevo-trayecto').addEventListener('click', prepararOtroTrayecto);
+
+    function agregarCampoReporte(contenedor, etiqueta, valor) {
+        const item = document.createElement('div');
+        item.className = 'reporte-dato';
+        const nombre = document.createElement('span');
+        nombre.textContent = etiqueta;
+        const contenido = document.createElement('strong');
+        contenido.textContent = valor;
+        item.append(nombre, contenido);
+        contenedor.appendChild(item);
+    }
+
+    async function imprimirResultadoHuella() {
+        if (registrosTrayecto.length === 0) {
+            alert('Registra al menos un trayecto antes de imprimir el resultado.');
+            return;
+        }
+
+        const reporte = document.getElementById('reporte-impresion');
+        reporte.replaceChildren();
+
+        const encabezadoReporte = document.createElement('header');
+        encabezadoReporte.className = 'reporte-encabezado';
+        const logoSuperior = document.createElement('img');
+        logoSuperior.src = 'img/EPC-LOG-01.png';
+        logoSuperior.alt = 'Gobernación de Cundinamarca';
+        encabezadoReporte.appendChild(logoSuperior);
+        reporte.appendChild(encabezadoReporte);
+
+        const titulo = document.createElement('h1');
+        titulo.textContent = 'Resultado de huella de carbono';
+        reporte.appendChild(titulo);
+
+        const resumen = document.createElement('div');
+        resumen.className = 'reporte-resumen';
+        agregarCampoReporte(resumen, 'Nombre', document.getElementById('nombre').value.trim());
+        agregarCampoReporte(resumen, 'Contrato', document.getElementById('numero-contrato').value.trim());
+        agregarCampoReporte(resumen, 'Mes', document.getElementById('mes').selectedOptions[0].text);
+
+        const distanciaTotal = registrosTrayecto.reduce((total, registro) => total + registro.distancia * registro.numeroDias * (registro.idaYVuelta ? 2 : 1), 0);
+        const huellaMensualTotal = registrosTrayecto.reduce((total, registro) => total + registro.huellaMes, 0);
+        const impactoTotalTrayectos = registrosTrayecto.reduce((total, registro) => total + registro.huellaViaje, 0);
+        agregarCampoReporte(resumen, 'Distancia total recorrida', `${distanciaTotal.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`);
+        agregarCampoReporte(resumen, 'Huella mensual acumulada', `${huellaMensualTotal.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg CO₂/mes`);
+        agregarCampoReporte(resumen, 'Impacto de todos los trayectos registrados', `${impactoTotalTrayectos.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg CO₂`);
+        reporte.appendChild(resumen);
+
+        const tituloGrafica = document.createElement('h2');
+        tituloGrafica.textContent = 'Huella mensual por tipo de transporte';
+        reporte.appendChild(tituloGrafica);
+        if (graficaTransporte) {
+            const grafica = document.createElement('img');
+            grafica.className = 'reporte-grafica';
+            grafica.src = graficaTransporte.toBase64Image();
+            grafica.alt = 'Gráfica de huella mensual acumulada por tipo de transporte';
+            reporte.appendChild(grafica);
+        }
+
+        const tituloDetalle = document.createElement('h2');
+        tituloDetalle.textContent = 'Detalle de trayectos';
+        reporte.appendChild(tituloDetalle);
+        const tabla = document.createElement('table');
+        tabla.className = 'reporte-tabla';
+        const encabezado = document.createElement('thead');
+        const filaEncabezado = document.createElement('tr');
+        ['#', 'Tipo de transporte', 'Distancia recorrida', 'Días', 'Ida y vuelta', 'Impacto del trayecto', 'Huella mensual'].forEach(texto => {
+            const celda = document.createElement('th');
+            celda.textContent = texto;
+            filaEncabezado.appendChild(celda);
+        });
+        encabezado.appendChild(filaEncabezado);
+        tabla.appendChild(encabezado);
+
+        const cuerpo = document.createElement('tbody');
+        registrosTrayecto.forEach((registro, indice) => {
+            const fila = document.createElement('tr');
+            const distanciaTrayecto = registro.distancia * registro.numeroDias * (registro.idaYVuelta ? 2 : 1);
+            const valores = [
+                String(indice + 1),
+                registro.transporte,
+                `${distanciaTrayecto.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`,
+                String(registro.numeroDias),
+                registro.idaYVuelta ? 'Sí' : 'No',
+                `${registro.huellaViaje.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg CO₂`,
+                `${registro.huellaMes.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg CO₂/mes`
+            ];
+            valores.forEach(valor => {
+                const celda = document.createElement('td');
+                celda.textContent = valor;
+                fila.appendChild(celda);
+            });
+            cuerpo.appendChild(fila);
+        });
+        tabla.appendChild(cuerpo);
+        reporte.appendChild(tabla);
+
+        const pie = document.createElement('footer');
+        pie.className = 'reporte-pie';
+        const logoContacto = document.createElement('img');
+        logoContacto.src = 'img/EPC-LOG-12.jpg';
+        logoContacto.alt = 'Dirección y datos de contacto de Empresas Públicas de Cundinamarca';
+        const logoEpc = document.createElement('img');
+        logoEpc.src = 'img/EPC-LOG-14.jpg';
+        logoEpc.alt = 'Empresas Públicas de Cundinamarca';
+        pie.append(logoContacto, logoEpc);
+        reporte.appendChild(pie);
+
+        try {
+            await Promise.all(Array.from(reporte.querySelectorAll('img'), imagen => imagen.decode()));
+        } catch {
+            alert('No se pudieron cargar los logos de impresión. Verifica los archivos EPC-LOG-01.png, EPC-LOG-12.jpg y EPC-LOG-14.jpg en la carpeta img.');
+            return;
+        }
+
+        window.print();
+    }
+
+    document.getElementById('btn-imprimir-huella').addEventListener('click', imprimirResultadoHuella);
+
+    function calcularHuella() {
+        const nombre = document.getElementById('nombre').value.trim();
+        const contrato = document.getElementById('numero-contrato').value.trim();
+        const mes = document.getElementById('mes').value;
+        const distanciaTexto = document.getElementById('distancia').value;
+        const distanciaNum = parseFloat(distanciaTexto);
+        const selectorTransporte = document.getElementById('transporte');
+        const factor = parseFloat(selectorTransporte.value);
+        const numeroDiasTra = Number(document.getElementById('numero-dias-trayecto').value);
+        const esIdaYVuelta = document.getElementById('ida-vuelta').checked;
+
+        if (!nombre || !/^\d{1,5}$/.test(contrato) || !mes || !Number.isFinite(distanciaNum) || !Number.isFinite(factor) || !Number.isInteger(numeroDiasTra) || numeroDiasTra < 1) {
+            alert('Complete nombre, contrato, mes de reporte, número de días, distancia del trayecto y tipo de transporte antes de calcular la huella.');
+            return;
+        }
+
+        const identidadActual = {
+            nombre: nombre.toLocaleLowerCase('es'),
+            contrato,
+            mes
+        };
+        if (identidadRegistro && (
+            identidadActual.nombre !== identidadRegistro.nombre ||
+            identidadActual.contrato !== identidadRegistro.contrato ||
+            identidadActual.mes !== identidadRegistro.mes
+        )) {
+            alert('Todos los trayectos registrados deben corresponder al mismo usuario, contrato y mes.');
+            return;
+        }
+
+        const huellaViaje = distanciaNum * factor;
+        let huellaMes = huellaViaje * numeroDiasTra;
+        if (esIdaYVuelta) huellaMes *= 2;
+
+        const categoria = document.getElementById('categoria-transporte').value;
+        const indiceTransporte = selectorTransporte.selectedIndex - 1;
+        const coloresPorCategoria = {
+            publico: ['#1d7ab8', '#0f9ac3', '#4ec6d5'],
+            propio: ['#1ea6b8', '#2e7d32', '#70ad47', '#c89b2c', '#7b8c9e'],
+            institucional: ['#f39a2b', '#d97706', '#ef4c3d']
+        };
+        registrosTrayecto.push({
+            transporte: selectorTransporte.options[selectorTransporte.selectedIndex].text,
+            distancia: distanciaNum,
+            numeroDias: numeroDiasTra,
+            idaYVuelta: esIdaYVuelta,
+            huellaViaje,
+            huellaMes,
+            color: coloresPorCategoria[categoria][indiceTransporte]
+        });
+        identidadRegistro = identidadActual;
+
+        const totalHuellaMes = registrosTrayecto.reduce((total, registro) => total + registro.huellaMes, 0);
+        document.getElementById('res-viaje').innerText = huellaViaje.toFixed(2);
+        document.getElementById('res-mes').innerText = totalHuellaMes.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        document.getElementById('resultado').style.display = 'flex';
+        actualizarGraficaTransporte();
+        document.getElementById('btn-imprimir-huella').hidden = false;
+        document.getElementById('btn-calcular-huella').hidden = true;
+        document.getElementById('btn-nuevo-trayecto').hidden = false;
+        document.querySelector('.tab-button[data-tab="transporte"]').click();
+    }
+</script>
+
+</body>
+</html>
