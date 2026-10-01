@@ -28,9 +28,17 @@
             <input type="text" id="nombre" name="nombre" required placeholder="Ingrese su nombre">
         </div>
 
-        <div class="input-group">
-            <label for="numero-contrato">Número de contrato</label>
-            <input type="text" id="numero-contrato" name="numero-contrato" required inputmode="numeric" pattern="[0-9]{1,5}" maxlength="5" placeholder="Ingrese el número de contrato">
+        <div class="contract-fields">
+            <div class="input-group">
+                <label for="numero-contrato">Número de contrato</label>
+                <input type="text" id="numero-contrato" name="numero-contrato" required inputmode="numeric" pattern="[0-9]{1,5}" maxlength="5" placeholder="Ingrese el número de contrato">
+            </div>
+            <div class="input-group">
+                <label for="ano-contrato">Año del Contrato</label>
+                <select id="ano-contrato" name="ano-contrato" required>
+                    <option value="" selected disabled>Seleccione un año</option>
+                </select>
+            </div>
         </div>
 
         <div class="input-group">
@@ -386,6 +394,14 @@
     document.getElementById('numero-contrato').addEventListener('input', function() {
         this.value = this.value.replace(/\D/g, '').slice(0, 5);
     });
+
+    const selectorAnoContrato = document.getElementById('ano-contrato');
+    for (let ano = 2022; ano <= new Date().getFullYear(); ano++) {
+        const opcionAno = document.createElement('option');
+        opcionAno.value = String(ano);
+        opcionAno.textContent = String(ano);
+        selectorAnoContrato.appendChild(opcionAno);
+    }
 
     document.getElementById('numero-dias-trayecto').addEventListener('input', function() {
         if (this.value < 0) this.value = '';
@@ -760,7 +776,7 @@
         const resumen = document.createElement('div');
         resumen.className = 'reporte-resumen';
         agregarCampoReporte(resumen, 'Nombre', document.getElementById('nombre').value.trim());
-        agregarCampoReporte(resumen, 'Contrato', document.getElementById('numero-contrato').value.trim());
+        agregarCampoReporte(resumen, 'Contrato', `${document.getElementById('numero-contrato').value.trim()} de ${document.getElementById('ano-contrato').value}`);
         agregarCampoReporte(resumen, 'Mes', document.getElementById('mes').selectedOptions[0].text);
 
         const distanciaTotal = registrosTrayecto.reduce((total, registro) => total + registro.distancia * registro.numeroDias * (registro.idaYVuelta ? 2 : 1), 0);
@@ -846,6 +862,7 @@
     function calcularHuella() {
         const nombre = document.getElementById('nombre').value.trim();
         const contrato = document.getElementById('numero-contrato').value.trim();
+        const anoContrato = document.getElementById('ano-contrato').value;
         const mes = document.getElementById('mes').value;
         const distanciaTexto = document.getElementById('distancia').value;
         const distanciaNum = parseFloat(distanciaTexto);
@@ -854,22 +871,24 @@
         const numeroDiasTra = Number(document.getElementById('numero-dias-trayecto').value);
         const esIdaYVuelta = document.getElementById('ida-vuelta').checked;
 
-        if (!nombre || !/^\d{1,5}$/.test(contrato) || !mes || !Number.isFinite(distanciaNum) || !Number.isFinite(factor) || !Number.isInteger(numeroDiasTra) || numeroDiasTra < 1) {
-            alert('Complete nombre, contrato, mes de reporte, número de días, distancia del trayecto y tipo de transporte antes de calcular la huella.');
+        if (!nombre || !/^\d{1,5}$/.test(contrato) || !anoContrato || !mes || !Number.isFinite(distanciaNum) || !Number.isFinite(factor) || !Number.isInteger(numeroDiasTra) || numeroDiasTra < 1) {
+            alert('Complete nombre, número y año del contrato, mes de reporte, número de días, distancia del trayecto y tipo de transporte antes de calcular la huella.');
             return;
         }
 
         const identidadActual = {
             nombre: nombre.toLocaleLowerCase('es'),
             contrato,
+            anoContrato,
             mes
         };
         if (identidadRegistro && (
             identidadActual.nombre !== identidadRegistro.nombre ||
             identidadActual.contrato !== identidadRegistro.contrato ||
+            identidadActual.anoContrato !== identidadRegistro.anoContrato ||
             identidadActual.mes !== identidadRegistro.mes
         )) {
-            alert('Todos los trayectos registrados deben corresponder al mismo usuario, contrato y mes.');
+            alert('Todos los trayectos registrados deben corresponder al mismo usuario, número y año del contrato, y mes.');
             return;
         }
 
