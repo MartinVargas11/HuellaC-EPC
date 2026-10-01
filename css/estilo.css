@@ -635,6 +635,14 @@ button:hover { background: linear-gradient(135deg, var(--epc-blue-2) 0%, var(--e
         break-inside: avoid;
     }
 
+    .reporte-declaracion {
+        margin: 8px 0 0;
+        color: #334155;
+        font-size: 7pt;
+        line-height: 1.4;
+        text-align: justify;
+    }
+
     .reporte-pie {
         display: flex;
         align-items: center;
